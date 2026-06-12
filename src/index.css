@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --color-brand-cyan: #06b6d4;
+  --color-brand-blue: #3b82f6;
+  --color-brand-indigo: #6366f1;
+}
+
+body {
+  background-color: #050508;
+  color: #f8fafc;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars for file list and log components */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Pulse keyframes for peer finder waves */
+@keyframes peer-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.peer-finding-wave-1 {
+  animation: peer-pulse 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.peer-finding-wave-2 {
+  animation: peer-pulse 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  animation-delay: 0.8s;
+}
+
+.peer-finding-wave-3 {
+  animation: peer-pulse 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  animation-delay: 1.6s;
+}

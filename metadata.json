@@ -1,0 +1,6 @@
+{
+  "name": "QuickDrop",
+  "description": "A secure, browser-based peer-to-peer file sharing platform similar to AirDrop, built on WebRTC and PeerJS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
