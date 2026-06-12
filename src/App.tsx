@@ -54,6 +54,28 @@ export default function App() {
   } = usePeer();
 
   const [inputCode, setInputCode] = useState<string>('');
+  const [createRipples, setCreateRipples] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+  const [joinRipples, setJoinRipples] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+
+  const handleCreateRoomClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setCreateRipples(prev => [...prev, { id: Date.now() + Math.random(), x, y, size }]);
+    createRoom();
+  };
+
+  const handleJoinRoomClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!inputCode.trim()) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setJoinRipples(prev => [...prev, { id: Date.now() + Math.random(), x, y, size }]);
+    joinRoom(inputCode);
+  };
+
   const [copied, setCopied] = useState<boolean>(false);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -245,33 +267,21 @@ export default function App() {
       {/* Main App Container */}
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-8 sm:py-12 flex flex-col justify-center relative z-10" id="main-content">
         
-        {/* Simple Brand Header */}
-        <header className="text-center mb-8" id="brand-header">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-500/15 border border-sky-500/20 mb-4 text-[10px] font-mono font-semibold tracking-widest text-sky-400 uppercase" id="status-badge">
-            <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-            E2E WebRTC File Stream
-          </div>
-          
-          <div className="flex items-center justify-center gap-3">
-            <motion.div
-              initial={{ rotate: -15, scale: 0.9 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20" id="logo-icon-box">
-                <svg className="w-6.5 h-6.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Simple Brand Header (Rendered on Active Rooms to preserve branding, hidden on Main Landing) */}
+        {roomCode && (
+          <header className="text-center mb-6" id="brand-header">
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/10" id="logo-icon-box">
+                <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                 </svg>
               </div>
-            </motion.div>
-            <h1 className="text-3.5xl sm:text-4xl font-display font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 font-sans" id="app-title">
-              QuickDrop
-            </h1>
-          </div>
-          <p className="text-slate-400 text-sm mt-3.5 max-w-md mx-auto" id="app-subtitle">
-            Secure, browser-to-browser direct packet synchronization. Zero servers, zero size margins, absolute storage privacy.
-          </p>
-        </header>
+              <h1 className="text-xl font-display font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300 font-sans" id="app-title">
+                QuickDrop
+              </h1>
+            </div>
+          </header>
+        )}
 
         {/* Browser compatibility prompt banner */}
         {compatReport && !compatReport.isFullyCompatible && (
@@ -328,76 +338,196 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.35 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
-              id="landing-panel-grid"
+              className="flex flex-col gap-6"
+              id="landing-container"
             >
-              
-              {/* Creator Card */}
-              <div 
-                className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-white/20 hover:bg-white/10 shadow-xl group relative overflow-hidden"
-                id="create-room-box"
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-sky-500/10 transition-colors" />
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 text-xl font-bold mb-6 group-hover:border-sky-400/40 group-hover:text-sky-300 transition-colors">
-                    1
-                  </div>
-                  <h2 className="text-xl font-display font-semibold text-slate-100" id="card-create-title">
-                    Host a Drop Room
-                  </h2>
-                  <p className="text-slate-400 text-sm mt-2 leading-relaxed" id="card-create-desc">
-                    Generates a cryptographically randomized, collision-resistant room code. Anyone pasting this passkey can stream bytes peer-to-peer.
-                  </p>
+              {/* BRAND HERO SECTION */}
+              <div className="text-center max-w-3xl mx-auto mb-6 px-4" id="landing-hero">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-sky-500/10 border border-sky-500/20 mb-6 rounded-full text-[10px] font-mono font-semibold tracking-wider text-sky-400 uppercase" id="hero-badge">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                  E2E WebRTC Direct Streaming Engine
                 </div>
+
+                <h1 className="text-4.5xl sm:text-5.5xl md:text-6.5xl font-display font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-slate-100 to-slate-400 leading-tight mb-4" id="hero-title">
+                  Fast, Private File Sharing
+                </h1>
                 
-                <button
-                  onClick={createRoom}
-                  className="w-full mt-8 py-3.5 px-4 bg-white/10 border border-white/10 rounded-2xl font-medium hover:bg-white/15 hover:border-white/20 transition-all shadow-md flex items-center justify-center gap-2 group/btn"
-                  id="btn-create-room"
-                >
-                  Create Room
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover/btn:translate-x-1 transition-transform" />
-                </button>
+                <p className="text-slate-400 text-sm sm:text-base md:text-md max-w-xl mx-auto leading-relaxed" id="hero-subtitle">
+                  Transfer files directly between devices. No accounts. No cloud uploads.
+                </p>
+
+                {/* Trust Badges */}
+                <div className="flex flex-wrap items-center justify-center gap-3 mt-6" id="trust-badges">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5 text-[11px] font-medium text-slate-300 shadow-xs hover:bg-white/[0.06] transition-colors">
+                    <Globe className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Peer-to-Peer</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5 text-[11px] font-medium text-slate-300 shadow-xs hover:bg-white/[0.06] transition-colors">
+                    <ServerOff className="w-3.5 h-3.5 text-purple-400" />
+                    <span>No Cloud Storage</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/5 text-[11px] font-medium text-slate-300 shadow-xs hover:bg-white/[0.06] transition-colors">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>No Account Required</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Joiner Card */}
-              <div 
-                className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all hover:border-white/20 hover:bg-white/10 shadow-xl group relative overflow-hidden"
-                id="join-room-box"
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-purple-500/10 transition-colors" />
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-purple-400 text-xl font-bold mb-6 group-hover:border-purple-400/40 group-hover:text-purple-300 transition-colors">
-                    2
+              {/* Action Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" id="landing-panel-grid">
+                {/* Creator Card */}
+                <div 
+                  className="bg-slate-900/40 border border-white/5 backdrop-blur-xl rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 hover:border-white/10 hover:bg-slate-950/60 shadow-xl group relative overflow-hidden"
+                  id="create-room-box"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-sky-500/10 transition-colors" />
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 text-sm font-mono font-bold mb-6 group-hover:border-sky-400/40 group-hover:text-sky-300 transition-colors">
+                      01
+                    </div>
+                    <h2 className="text-lg font-display font-semibold text-slate-100" id="card-create-title">
+                      Host a Drop Room
+                    </h2>
+                    <p className="text-slate-400 text-xs mt-2 leading-relaxed" id="card-create-desc">
+                      Generates a cryptographically randomized, collision-resistant room code. Anyone pasting this passkey can stream bytes peer-to-peer.
+                    </p>
                   </div>
-                  <h2 className="text-xl font-display font-semibold text-slate-100" id="card-join-title">
-                    Join peer session
-                  </h2>
-                  <p className="text-slate-400 text-sm mt-2 leading-relaxed" id="card-join-desc">
-                    Provide the host code to build target signaling bindings. You can also bypass manual typing by scanning the shared QR code.
-                  </p>
+                  
+                  <button
+                    onClick={handleCreateRoomClick}
+                    className="relative overflow-hidden w-full mt-8 py-3 px-4 bg-sky-500/10 border border-sky-500/20 text-sky-300 rounded-2xl font-medium hover:bg-sky-500/20 hover:border-sky-500/30 transition-all duration-300 ease-out active:opacity-75 shadow-md flex items-center justify-center gap-2 group/btn cursor-pointer"
+                    id="btn-create-room"
+                  >
+                    <AnimatePresence>
+                      {createRipples.map(ripple => (
+                        <motion.span
+                          key={ripple.id}
+                          initial={{ scale: 0, opacity: 0.4 }}
+                          animate={{ scale: 2.2, opacity: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          style={{
+                            position: 'absolute',
+                            left: ripple.x,
+                            top: ripple.y,
+                            width: ripple.size,
+                            height: ripple.size,
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(56, 189, 248, 0.35)',
+                            pointerEvents: 'none',
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                          onAnimationComplete={() => {
+                            setCreateRipples(prev => prev.filter(r => r.id !== ripple.id));
+                          }}
+                        />
+                      ))}
+                    </AnimatePresence>
+                    Create Room
+                    <ArrowRight className="w-4 h-4 text-sky-400 group-hover/btn:translate-x-1 transition-transform" />
+                  </button>
                 </div>
 
-                <div className="mt-8 space-y-3" id="join-form-wrapper">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="e.g. swift-wave-m5z9"
-                      value={inputCode}
-                      onChange={(e) => setInputCode(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && joinRoom(inputCode)}
-                      className="w-full py-3.5 px-4 bg-black/40 border border-white/5 rounded-2xl font-mono text-sm tracking-wide text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20"
-                    />
+                {/* Joiner Card */}
+                <div 
+                  className="bg-slate-900/40 border border-white/5 backdrop-blur-xl rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 hover:border-white/10 hover:bg-slate-950/60 shadow-xl group relative overflow-hidden"
+                  id="join-room-box"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-purple-500/10 transition-colors" />
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-purple-400 text-sm font-mono font-bold mb-6 group-hover:border-purple-400/40 group-hover:text-purple-300 transition-colors">
+                      02
+                    </div>
+                    <h2 className="text-lg font-display font-semibold text-slate-100" id="card-join-title">
+                      Join Peer Session
+                    </h2>
+                    <p className="text-slate-400 text-xs mt-2 leading-relaxed" id="card-join-desc">
+                      Provide the host code to build target signaling bindings. You can also bypass manual typing by scanning the shared QR code.
+                    </p>
                   </div>
-                  <button
-                    onClick={() => joinRoom(inputCode)}
-                    disabled={!inputCode.trim()}
-                    className="w-full py-3.5 px-4 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 disabled:opacity-50 disabled:pointer-events-none rounded-2xl font-medium transition-all shadow-md flex items-center justify-center gap-2"
-                    id="btn-join-room"
-                  >
-                    Connect Link
-                    <ArrowRight className="w-4 h-4 text-white" />
-                  </button>
+
+                  <div className="mt-8 space-y-3" id="join-form-wrapper">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="e.g. swift-wave-m5z9"
+                        value={inputCode}
+                        onChange={(e) => setInputCode(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && joinRoom(inputCode)}
+                        className="w-full py-3 px-4 bg-black/40 border border-white/5 rounded-2xl font-mono text-xs tracking-wide text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-white/10 focus:ring-1 focus:ring-white/10"
+                      />
+                    </div>
+                    <button
+                      onClick={handleJoinRoomClick}
+                      disabled={!inputCode.trim()}
+                      className="relative overflow-hidden w-full py-3 px-4 bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 disabled:opacity-30 disabled:pointer-events-none rounded-2xl font-medium transition-all duration-300 ease-out active:opacity-75 shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm text-white"
+                      id="btn-join-room"
+                    >
+                      <AnimatePresence>
+                        {joinRipples.map(ripple => (
+                          <motion.span
+                            key={ripple.id}
+                            initial={{ scale: 0, opacity: 0.4 }}
+                            animate={{ scale: 2.2, opacity: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            style={{
+                              position: 'absolute',
+                              left: ripple.x,
+                              top: ripple.y,
+                              width: ripple.size,
+                              height: ripple.size,
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(255, 255, 255, 0.45)',
+                              pointerEvents: 'none',
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                            onAnimationComplete={() => {
+                              setJoinRipples(prev => prev.filter(r => r.id !== ripple.id));
+                            }}
+                          />
+                        ))}
+                      </AnimatePresence>
+                      Connect Link
+                      <ArrowRight className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* HOW IT WORKS SECTION */}
+              <div className="mt-10 pt-8 border-t border-white/5" id="how-it-works-panel">
+                <h3 className="text-center text-xs font-mono font-bold tracking-widest text-sky-400 uppercase mb-8">
+                  How It Works
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                  <div className="space-y-3 p-5 rounded-2xl bg-white/[0.01] border border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all duration-300">
+                    <div className="w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 font-mono font-bold mx-auto text-xs">
+                      1
+                    </div>
+                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-100">Create Room</h4>
+                    <p className="text-slate-400 text-xs leading-relaxed font-sans">
+                      Instantly generate an isolated, secure peer-to-peer signal room with a single click.
+                    </p>
+                  </div>
+                  <div className="space-y-3 p-5 rounded-2xl bg-white/[0.01] border border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all duration-300">
+                    <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 font-mono font-bold mx-auto text-xs">
+                      2
+                    </div>
+                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-100">Share Code or QR</h4>
+                    <p className="text-slate-400 text-xs leading-relaxed font-sans">
+                      Send the dynamic URL invite key, read out the code, or show the dynamic QR code to scan.
+                    </p>
+                  </div>
+                  <div className="space-y-3 p-5 rounded-2xl bg-white/[0.01] border border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all duration-300">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-mono font-bold mx-auto text-xs">
+                      3
+                    </div>
+                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-100">Transfer Files</h4>
+                    <p className="text-slate-400 text-xs leading-relaxed font-sans">
+                      Drag and drop any payload. Data streams safely directly in device RAM.
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -536,17 +666,17 @@ export default function App() {
 
               {/* Connected Stage Wave Radar when idle / empty peers */}
               {peers.length === 0 && (
-                <div className="relative py-12 bg-white/5 border border-dashed border-white/5 rounded-3xl text-center overflow-hidden flex flex-col items-center justify-center backdrop-blur-xl" id="discovery-radar">
-                  <div className="absolute w-64 h-64 border border-indigo-500/5 rounded-full peer-finding-wave-1" />
-                  <div className="absolute w-64 h-64 border border-purple-500/5 rounded-full peer-finding-wave-2" />
-                  <div className="absolute w-64 h-64 border border-blue-500/5 rounded-full peer-finding-wave-3" />
+                <div className="relative py-14 bg-slate-900/20 border border-dashed border-white/5 rounded-3xl text-center overflow-hidden flex flex-col items-center justify-center backdrop-blur-xl p-8" id="discovery-radar">
+                  <div className="absolute w-72 h-72 border border-sky-500/5 rounded-full peer-finding-wave-1" />
+                  <div className="absolute w-72 h-72 border border-purple-500/5 rounded-full peer-finding-wave-2" />
+                  <div className="absolute w-72 h-72 border border-emerald-500/5 rounded-full peer-finding-wave-3" />
                   
-                  <div className="relative w-14 h-14 rounded-full bg-black/40 border border-white/5 flex items-center justify-center text-sky-400 mb-4 shadow" id="radar-antenna">
-                    <Wifi className="w-5 h-5 animate-pulse text-sky-400" />
+                  <div className="relative w-12 h-12 rounded-full bg-black/40 border border-white/5 flex items-center justify-center text-sky-450 mb-4 shadow-lg animate-pulse" id="radar-antenna">
+                    <Wifi className="w-5 h-5 text-sky-400" />
                   </div>
-                  <h4 className="text-sm font-semibold text-slate-300 font-mono tracking-wider lowercase">searching for peer sockets...</h4>
-                  <p className="text-slate-500 text-xs mt-1.5 max-w-sm px-6 leading-relaxed">
-                    Leave this session open. Open <strong>QuickDrop</strong> on another phone or laptop, select "Join Room" and specify: <strong>{roomCode}</strong>.
+                  <h4 className="text-xs font-mono font-bold tracking-wider text-slate-350 uppercase">Searching for Peer handshakes...</h4>
+                  <p className="text-slate-400 text-xs mt-2.5 max-w-sm px-6 leading-relaxed">
+                    Leave this session open. Launch <strong>QuickDrop</strong> on your secondary phone/laptop, select "Join Peer Session" and enter code: <strong className="text-sky-300 font-mono tracking-wide bg-sky-950/40 px-2 py-0.5 rounded border border-sky-900/30 font-bold">{roomCode}</strong>.
                   </p>
                 </div>
               )}
@@ -558,10 +688,10 @@ export default function App() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={selectFilesManually}
-                  className={`relative cursor-pointer transition-all duration-300 rounded-3xl p-8 sm:p-12 text-center border-2 border-dashed flex flex-col items-center justify-center backdrop-blur-xl ${
+                  className={`relative cursor-pointer transition-all duration-300 rounded-3xl p-8 sm:p-12 text-center border font-sans flex flex-col items-center justify-center backdrop-blur-xl ${
                     isDragging 
-                    ? 'border-sky-500/45 bg-white/10 scale-[0.99] shadow-2xl' 
-                    : 'border-white/10 bg-white/5 hover:border-sky-500/35 hover:bg-white/10'
+                    ? 'border-sky-500/40 bg-sky-950/20 shadow-2xl scale-[0.99]' 
+                    : 'border-white/5 bg-slate-900/20 hover:border-sky-500/20 hover:bg-slate-950/40'
                   }`}
                   id="dropzone"
                 >
@@ -572,13 +702,13 @@ export default function App() {
                     multiple
                     className="hidden"
                   />
-                  <div className="w-16 h-16 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center text-slate-400 mb-4 shadow transition-colors" id="drop-icon-box">
-                    <FolderUp className={`w-8 h-8 ${isDragging ? 'text-sky-400 animate-bounce' : 'text-slate-200/80'}`} />
+                  <div className="w-14 h-14 rounded-2xl bg-black/30 border border-white/5 flex items-center justify-center text-slate-350 mb-4 shadow-inner transition-colors" id="drop-icon-box">
+                    <FolderUp className={`w-6 h-6 ${isDragging ? 'text-sky-400 animate-bounce' : 'text-slate-300'}`} />
                   </div>
-                  <h4 className="text-sm font-semibold text-slate-200 font-mono uppercase tracking-wider">
+                  <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-200">
                     {isDragging ? 'stream incoming payload instantly' : 'Drag & Drop files here, or click to browse'}
                   </h4>
-                  <p className="text-slate-500 text-xs mt-2 max-w-xs leading-relaxed font-sans">
+                  <p className="text-slate-400 text-xs mt-2 max-w-xs leading-relaxed">
                     Binary payloads are locally sliced into memory segments and dynamic-casted to all destinations over the RTC channel.
                   </p>
                 </div>
@@ -586,16 +716,16 @@ export default function App() {
 
               {/* CURRENT TRANSFERS LISTING */}
               {transfers.length > 0 && (
-                <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-6 shadow-xl space-y-4" id="transfers-container">
+                <div className="bg-slate-900/30 border border-white/5 backdrop-blur-md rounded-3xl p-6 shadow-xl space-y-4" id="transfers-container">
                   <div className="flex items-center justify-between" id="transfer-track-header">
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase flex items-center gap-1.5 animate-pulse">
-                      <HardDriveUpload className="w-4 h-4 text-sky-400" />
+                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-405 uppercase flex items-center gap-1.5">
+                      <HardDriveUpload className="w-4 h-4 text-sky-400 animate-bounce" />
                       Live Transmission Streams
                     </h3>
                     
                     <button
                       onClick={clearCompletedTransfers}
-                      className="text-[11px] font-mono font-semibold text-slate-400 hover:text-slate-200 transition-colors py-1.5 px-3 bg-white/5 border border-white/15 rounded-xl hover:bg-white/10 shadow"
+                      className="text-[11px] font-mono font-semibold text-slate-300 hover:text-white transition-colors py-1.5 px-3 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 shadow cursor-pointer"
                       id="btn-clear-completed"
                     >
                       Clear Ended
@@ -606,23 +736,35 @@ export default function App() {
                     {transfers.map((t) => (
                       <div
                         key={t.id}
-                        className="bg-black/35 border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:bg-black/40 transition-colors shadow"
+                        className={`border rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between transition-all duration-300 shadow bg-slate-950/40 ${
+                          t.status === 'completed' 
+                          ? 'border-emerald-500/10 hover:border-emerald-500/20' 
+                          : t.status === 'failed' 
+                          ? 'border-red-500/10 hover:border-red-500/20' 
+                          : t.status === 'transferring'
+                          ? 'border-sky-500/10 hover:border-sky-500/20'
+                          : 'border-white/5'
+                        }`}
                         id={`transfer-item-${t.id}`}
                       >
                         {/* Column with icon and metadata */}
                         <div className="flex items-center gap-3 w-full md:w-auto" id="file-meta-col">
-                          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-inner" id="file-ext-frame">
+                          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 shadow-inner" id="file-ext-frame">
                             {getFileIcon(t.mime, t.name)}
                           </div>
                           
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-100 truncate pr-3" title={t.name}>
+                            <p className="text-xs font-bold text-slate-100 truncate pr-3" title={t.name}>
                               {t.name}
                             </p>
-                            <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
                               {formatBytes(t.size)}
                               <span className="mx-1.5 text-slate-700">•</span>
-                              <span className="uppercase tracking-wide text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-slate-400">
+                              <span className={`uppercase tracking-wider text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border bg-black/40 ${
+                                t.direction === 'send' 
+                                ? 'border-sky-500/10 text-sky-405' 
+                                : 'border-purple-500/10 text-purple-405'
+                              }`}>
                                 {t.direction === 'send' ? 'Outgoing' : 'Incoming'}
                               </span>
                             </p>
@@ -631,33 +773,33 @@ export default function App() {
 
                         {/* Progression slider track */}
                         <div className="w-full md:flex-1 md:max-w-xs flex flex-col gap-1.5 font-mono" id="transfer-metrics-col">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="font-semibold text-[11px]" id="transfer-status-tag">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="font-bold text-[10px]" id="transfer-status-tag">
                               {t.status === 'transferring' && (
                                 <span className="text-sky-400 flex items-center gap-1.5">
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
                                   Streaming ({t.progress}%)
                                 </span>
                               )}
                               {t.status === 'paused' && (
                                 <span className="text-amber-400 flex items-center gap-1">
-                                  <Pause className="w-3 h-3 text-amber-400" />
+                                  <Pause className="w-2.5 h-2.5 text-amber-400" />
                                   {t.isPausedByMe ? 'Paused by me' : 'Paused by peer'}
                                 </span>
                               )}
-                              {t.status === 'connecting' && <span className="text-slate-500 animate-pulse">Initializing channel...</span>}
-                              {t.status === 'pending' && <span className="text-slate-500">Awaiting slot...</span>}
-                              {t.status === 'completed' && <span className="text-emerald-400 font-bold uppercase tracking-wider text-[11px]">Directly Synced</span>}
-                              {t.status === 'failed' && <span className="text-red-400 uppercase tracking-wider text-[11px]">Terminated</span>}
+                              {t.status === 'connecting' && <span className="text-slate-400 animate-pulse">Connecting...</span>}
+                              {t.status === 'pending' && <span className="text-slate-400">Awaiting slot...</span>}
+                              {t.status === 'completed' && <span className="text-emerald-400 font-bold uppercase tracking-wider text-[9px]">Directly Synced</span>}
+                              {t.status === 'failed' && <span className="text-red-400 uppercase tracking-wider text-[9px]">Terminated</span>}
                             </span>
                             
                             {/* Live transfer rates and time estimations */}
                             {t.status === 'transferring' && (
-                              <span className="text-slate-400 text-[11px] flex items-center gap-2">
+                              <span className="text-slate-400 flex items-center gap-2">
                                 <span>{formatSpeed(t.speed)}</span>
-                                <span className="text-slate-700">|</span>
+                                <span className="text-slate-800">|</span>
                                 <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3 text-slate-500" />
+                                  <Clock className="w-2.5 h-2.5 text-slate-500" />
                                   {formatTimeLeft(t.timeLeft ?? Infinity)}
                                 </span>
                               </span>
@@ -665,7 +807,7 @@ export default function App() {
                           </div>
 
                           {/* Inline structural progression line */}
-                          <div className="relative w-full h-1.5 bg-black/40 border border-white/5 rounded-full overflow-hidden" id="progressbar-container">
+                          <div className="relative w-full h-1.5 bg-black/50 border border-white/5 rounded-full overflow-hidden" id="progressbar-container">
                             <div
                               className={`h-full rounded-full transition-all duration-300 ${
                                 t.status === 'completed' 
@@ -674,7 +816,7 @@ export default function App() {
                                 ? 'bg-red-500' 
                                 : t.status === 'paused'
                                 ? 'bg-amber-500'
-                                : 'bg-gradient-to-r from-sky-400 to-indigo-500 animate-pulse'
+                                : 'bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 animate-pulse'
                               }`}
                               style={{ width: `${t.progress}%` }}
                               id="progressbar-fill"
@@ -683,8 +825,8 @@ export default function App() {
 
                           {/* Failure reports if any */}
                           {t.error && (
-                            <p className="text-[10px] text-red-400 font-sans mt-0.5 flex items-center gap-1 leading-snug" id="transfer-error-reason">
-                              <XCircle className="w-3 h-3 shrink-0" />
+                            <p className="text-[9px] text-red-400 font-sans mt-0.5 flex items-center gap-1 leading-snug" id="transfer-error-reason">
+                              <XCircle className="w-2.5 h-2.5 shrink-0" />
                               {t.error}
                             </p>
                           )}
@@ -697,17 +839,17 @@ export default function App() {
                           {(t.status === 'transferring' || t.status === 'paused') && (
                             <button
                               onClick={() => togglePauseTransfer(t.id)}
-                              className="p-1 px-2.5 bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 transition-colors rounded-xl text-xs flex items-center gap-1 shadow-sm font-mono"
+                              className="p-1 px-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-slate-200 hover:text-white transition-colors rounded-xl text-[11px] flex items-center gap-1 shadow-sm font-mono cursor-pointer"
                               id="btn-pause-resume"
                             >
                               {t.status === 'paused' ? (
                                 <>
-                                  <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                                  <Play className="w-2.5 h-2.5 text-emerald-400 fill-emerald-400" />
                                   <span>Resume</span>
                                 </>
                               ) : (
                                 <>
-                                  <Pause className="w-3 h-3 text-amber-400" />
+                                  <Pause className="w-2.5 h-2.5 text-amber-400" />
                                   <span>Pause</span>
                                 </>
                               )}
